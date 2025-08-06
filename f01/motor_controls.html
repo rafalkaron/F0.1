@@ -102,7 +102,15 @@
     let sendSliderUpdateAbortController = null;
     let sendSliderUpdateTimeout = null;
     let resetSlidersTimeout = null;
+    // Cache DOM elements for performance
+    let leftSlider, rightSlider, leftValueElem, rightValueElem;
+    let lastSentLeft = null, lastSentRight = null;
+
     function sendSliderUpdate(left, right) {
+      // Only send if values changed
+      if (left === lastSentLeft && right === lastSentRight) return;
+      lastSentLeft = left;
+      lastSentRight = right;
       // Debounce: only send after 40ms pause
       if (sendSliderUpdateTimeout) {
         clearTimeout(sendSliderUpdateTimeout);
@@ -118,14 +126,21 @@
       }, 40);
     }
     function updateValue(id, value) {
-      document.getElementById(id).textContent = value;
+      if (id === "leftValue") {
+        leftValueElem.textContent = value;
+      } else if (id === "rightValue") {
+        rightValueElem.textContent = value;
+      }
     }
     function onSliderInput() {
-      const left = document.getElementById("left").value;
-      const right = document.getElementById("right").value;
-      updateValue("leftValue", left);
-      updateValue("rightValue", right);
-      sendSliderUpdate(left, right);
+      const left = leftSlider.value;
+      const right = rightSlider.value;
+      // Only update if changed
+      if (left !== lastSentLeft || right !== lastSentRight) {
+        updateValue("leftValue", left);
+        updateValue("rightValue", right);
+        sendSliderUpdate(left, right);
+      }
     }
 
     function startResetTimer() {
@@ -133,8 +148,8 @@
         clearTimeout(resetSlidersTimeout);
       }
       resetSlidersTimeout = setTimeout(function () {
-        document.getElementById("left").value = 0;
-        document.getElementById("right").value = 0;
+        leftSlider.value = 0;
+        rightSlider.value = 0;
         updateValue("leftValue", 0);
         updateValue("rightValue", 0);
         sendSliderUpdate(0, 0);
@@ -143,8 +158,10 @@
 
     // Attach mouse/touch release events to start reset timer
     document.addEventListener("DOMContentLoaded", function () {
-      const leftSlider = document.getElementById("left");
-      const rightSlider = document.getElementById("right");
+      leftSlider = document.getElementById("left");
+      rightSlider = document.getElementById("right");
+      leftValueElem = document.getElementById("leftValue");
+      rightValueElem = document.getElementById("rightValue");
       [leftSlider, rightSlider].forEach(function (slider) {
         slider.addEventListener("mouseup", startResetTimer);
         slider.addEventListener("touchend", startResetTimer);
