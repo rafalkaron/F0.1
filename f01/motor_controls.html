@@ -160,9 +160,9 @@
     // --- Notify server on page unload ---
     window.addEventListener("beforeunload", function () {
       if (navigator.sendBeacon) {
-        navigator.sendBeacon("/set?stop=1");
+        navigator.sendBeacon("/set?left=0&right=0");
       } else {
-        fetch("/set?stop=1", { method: "POST", keepalive: true });
+        fetch("/set?left=0&right=0", { method: "POST", keepalive: true });
       }
     });
   </script>
