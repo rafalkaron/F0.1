@@ -1,4 +1,7 @@
 import uasyncio
+import ubinascii
+import uhashlib
+import ujson
 
 HTML_PATH: str = "f01/motor_controls.html"
 MAX_CLIENTS: int = 2
@@ -54,6 +57,73 @@ class WebServer:
                 params[k] = v
         return params
 
+    async def handle_ws(self, reader, writer):
+        """
+        Handles WebSocket connections for slider/gamepad updates.
+        """
+        key = None
+        # Handshake
+        while True:
+            line = await reader.readline()
+            if not line or line == b"\r\n":
+                break
+            if line.lower().startswith(b"sec-websocket-key:"):
+                key = line.split(b":", 1)[1].strip()
+        if not key:
+            await writer.awrite("HTTP/1.1 400 Bad Request\r\n\r\n")
+            await writer.aclose()
+            return
+        GUID = b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+        accept = (
+            ubinascii.b2a_base64(uhashlib.sha1(key + GUID).digest()).strip().decode()
+        )
+        response = (
+            "HTTP/1.1 101 Switching Protocols\r\n"
+            "Upgrade: websocket\r\n"
+            "Connection: Upgrade\r\n"
+            f"Sec-WebSocket-Accept: {accept}\r\n\r\n"
+        )
+        await writer.awrite(response)
+        # Handle frames
+        try:
+            while True:
+                hdr = await reader.readexactly(2)
+                if not hdr:
+                    break
+                fin = hdr[0] & 0x80
+                opcode = hdr[0] & 0x0F
+                masked = hdr[1] & 0x80
+                length = hdr[1] & 0x7F
+                if length == 126:
+                    ext = await reader.readexactly(2)
+                    length = int.from_bytes(ext, "big")
+                elif length == 127:
+                    ext = await reader.readexactly(8)
+                    length = int.from_bytes(ext, "big")
+                if masked:
+                    mask = await reader.readexactly(4)
+                    data = bytearray(await reader.readexactly(length))
+                    for i in range(length):
+                        data[i] ^= mask[i % 4]
+                else:
+                    data = await reader.readexactly(length)
+                if opcode == 8:  # close
+                    break
+                if opcode == 1:  # text
+                    try:
+                        msg = ujson.loads(data.decode())
+                        left = msg.get("left")
+                        right = msg.get("right")
+                        if left is not None:
+                            self.last_left = int(left)
+                        if right is not None:
+                            self.last_right = int(right)
+                    except Exception as e:
+                        print("WS parse error", e)
+        except Exception as e:
+            print("WS error", e)
+        await writer.aclose()
+
     async def handle_client(self, reader: object, writer: object) -> None:
         """
         Handles an incoming HTTP client connection. Allows up to MAX_CLIENTS at the same time.
@@ -70,6 +140,9 @@ class WebServer:
             if not request_line:
                 return
             request: str = request_line.decode().strip()
+            if request.startswith("GET /ws"):
+                await self.handle_ws(reader, writer)
+                return
             # Only read headers if not a /set? request
             is_set = request.startswith("GET /set?")
             if not is_set:

@@ -106,24 +106,42 @@
     let leftSlider, rightSlider, leftValueElem, rightValueElem;
     let lastSentLeft = null, lastSentRight = null;
 
+    let ws = null;
+    let wsConnected = false;
+    let wsQueue = [];
+
+    function connectWebSocket() {
+      ws = new WebSocket(
+        (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"
+      );
+      ws.onopen = function () {
+        wsConnected = true;
+        // Send any queued messages
+        while (wsQueue.length > 0) {
+          ws.send(wsQueue.shift());
+        }
+      };
+      ws.onclose = function () {
+        wsConnected = false;
+        // Try to reconnect after 1s
+        setTimeout(connectWebSocket, 1000);
+      };
+      ws.onerror = function () {
+        ws.close();
+      };
+    }
+    document.addEventListener("DOMContentLoaded", connectWebSocket);
+
     function sendSliderUpdate(left, right) {
-      // Only send if values changed
       if (left === lastSentLeft && right === lastSentRight) return;
       lastSentLeft = left;
       lastSentRight = right;
-      // Debounce: only send after 40ms pause
-      if (sendSliderUpdateTimeout) {
-        clearTimeout(sendSliderUpdateTimeout);
+      const msg = JSON.stringify({ left: Number(left), right: Number(right) });
+      if (wsConnected && ws && ws.readyState === 1) {
+        ws.send(msg);
+      } else {
+        wsQueue.push(msg);
       }
-      sendSliderUpdateTimeout = setTimeout(function () {
-        // Abort previous fetch if still pending
-        if (sendSliderUpdateAbortController) {
-          sendSliderUpdateAbortController.abort();
-        }
-        sendSliderUpdateAbortController = new AbortController();
-        fetch(`/set?left=${left}&right=${right}`, { signal: sendSliderUpdateAbortController.signal })
-          .catch(err => {/* Optionally handle error */ });
-      }, 40);
     }
     function updateValue(id, value) {
       if (id === "leftValue") {
