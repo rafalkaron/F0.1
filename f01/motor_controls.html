@@ -121,6 +121,7 @@
   <script>
     let sendSliderUpdateAbortController = null;
     let sendSliderUpdateTimeout = null;
+    let resetSlidersTimeout = null;
     function sendSliderUpdate(left, right) {
       // Debounce: only send after 40ms pause
       if (sendSliderUpdateTimeout) {
@@ -146,24 +147,31 @@
       updateValue("rightValue", right);
       sendSliderUpdate(left, right);
     }
-    function sendStop() {
-      document.getElementById("left").value = 0;
-      document.getElementById("right").value = 0;
-      updateValue("leftValue", 0);
-      updateValue("rightValue", 0);
-      sendSliderUpdate(0, 0);
-    }
-    // --- Keep-alive ping every 10 seconds ---
-    setInterval(function () {
-      fetch("/set?keepalive=1").catch(() => { });
-    }, 10000);
-    // --- Notify server on page unload ---
-    window.addEventListener("beforeunload", function () {
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon("/set?left=0&right=0");
-      } else {
-        fetch("/set?left=0&right=0", { method: "POST", keepalive: true });
+
+    function startResetTimer() {
+      if (resetSlidersTimeout) {
+        clearTimeout(resetSlidersTimeout);
       }
+      resetSlidersTimeout = setTimeout(function () {
+        document.getElementById("left").value = 0;
+        document.getElementById("right").value = 0;
+        updateValue("leftValue", 0);
+        updateValue("rightValue", 0);
+        sendSliderUpdate(0, 0);
+      }, 250);
+    }
+
+    // Attach mouse/touch release events to start reset timer
+    document.addEventListener("DOMContentLoaded", function () {
+      const leftSlider = document.getElementById("left");
+      const rightSlider = document.getElementById("right");
+      [leftSlider, rightSlider].forEach(function (slider) {
+        slider.addEventListener("mouseup", startResetTimer);
+        slider.addEventListener("touchend", startResetTimer);
+        slider.addEventListener("mouseleave", function (e) {
+          if (e.buttons === 0) startResetTimer();
+        });
+      });
     });
   </script>
 </head>
@@ -189,7 +197,6 @@
         </div>
       </div>
     </div>
-    <button type="button" class="stop-btn" onclick="sendStop()">STOP</button>
     <div class="slider-component">
       <div class="slider-label"><span class="value-label">R</span><span id="rightValue" class="value">0</span>
       </div>
