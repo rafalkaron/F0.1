@@ -1,0 +1,266 @@
+<html>
+
+<head>
+  <title>F0.1</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      color: #2f2f2f;
+      background: #f8f8f8;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      align-content: center;
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-end;
+      justify-content: space-evenly;
+      padding: 0 0 1rem 0;
+    }
+
+    .slider-label {
+      margin: 0 0 1rem 0;
+      font-weight: bold;
+      text-align: center;
+      font-size: 1.5rem;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+    }
+
+    .value {
+      font-weight: bold;
+      margin: 0 0 0 0;
+      font-size: 1.5rem;
+      text-align: center;
+      color: #2196F3;
+    }
+
+    .slider-with-labels {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .slider-values {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      height: 75vh;
+      max-height: 350px;
+      font-size: 0.75rem;
+      color: #bababa;
+    }
+
+    .slider-values.left-values {
+      margin-left: 1.25rem;
+    }
+
+    .slider-values.right-values {
+      margin-right: 1.25rem;
+      text-align: right;
+    }
+
+    .slider-vertical {
+      writing-mode: bt-lr;
+      appearance: slider-vertical;
+      width: 64px;
+      height: 75vh;
+      max-height: 350px;
+    }
+
+    .stop-btn {
+      width: 64px;
+      height: 64px;
+      min-width: 64px;
+      min-height: 64px;
+      font-size: 1.2em;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e53935;
+      border: none;
+      color: #f8f8f8;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: none;
+      outline: none;
+      transition: none;
+    }
+
+    input[type=range].slider-vertical::-webkit-slider-thumb {
+      width: 64px;
+      height: 64px;
+      background: #2196F3;
+      cursor: pointer;
+    }
+
+    input[type=range].slider-vertical::-moz-range-thumb {
+      width: 64px;
+      height: 64px;
+      background: #2196F3;
+      cursor: pointer;
+    }
+
+    input[type=range].slider-vertical::-ms-thumb {
+      width: 64px;
+      height: 64px;
+      background: #2196F3;
+      cursor: pointer;
+    }
+  </style>
+  <script>
+    let sendSliderUpdateAbortController = null;
+    let sendSliderUpdateTimeout = null;
+    function sendSliderUpdate(left, right) {
+      // Debounce: only send after 40ms pause
+      if (sendSliderUpdateTimeout) {
+        clearTimeout(sendSliderUpdateTimeout);
+      }
+      sendSliderUpdateTimeout = setTimeout(function () {
+        // Abort previous fetch if still pending
+        if (sendSliderUpdateAbortController) {
+          sendSliderUpdateAbortController.abort();
+        }
+        sendSliderUpdateAbortController = new AbortController();
+        fetch(`/set?left=${left}&right=${right}`, { signal: sendSliderUpdateAbortController.signal })
+          .catch(err => {/* Optionally handle error */ });
+      }, 40);
+    }
+    function updateValue(id, value) {
+      document.getElementById(id).textContent = value;
+    }
+    function onSliderInput() {
+      const left = document.getElementById("left").value;
+      const right = document.getElementById("right").value;
+      updateValue("leftValue", left);
+      updateValue("rightValue", right);
+      sendSliderUpdate(left, right);
+    }
+    function sendStop() {
+      document.getElementById("left").value = 0;
+      document.getElementById("right").value = 0;
+      updateValue("leftValue", 0);
+      updateValue("rightValue", 0);
+      sendSliderUpdate(0, 0);
+    }
+    // --- Keep-alive ping every 10 seconds ---
+    setInterval(function () {
+      fetch("/set?keepalive=1").catch(() => { });
+    }, 10000);
+    // --- Notify server on page unload ---
+    window.addEventListener("beforeunload", function () {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/set?stop=1");
+      } else {
+        fetch("/set?stop=1", { method: "POST", keepalive: true });
+      }
+    });
+  </script>
+</head>
+
+<body>
+  <form class="controls" method="get" onsubmit="return false;">
+    <div class="slider-component">
+      <div class="slider-label"><span class="value-label">L</span><span id="leftValue" class="value">0</span>
+      </div>
+      <div class="slider-with-labels">
+        <input class="slider slider-vertical" name="left" id="left" type="range" min="-100" max="100" value="0" step="1"
+          oninput="onSliderInput()" />
+        <div class="slider-values left-values">
+          <span style="font-weight: bold;">100</span>
+          <span>75</span>
+          <span>50</span>
+          <span>25</span>
+          <span style="font-weight: bold;">0</span>
+          <span>-25</span>
+          <span>-50</span>
+          <span>-75</span>
+          <span style="font-weight: bold;">-100</span>
+        </div>
+      </div>
+    </div>
+    <button type="button" class="stop-btn" onclick="sendStop()">STOP</button>
+    <div class="slider-component">
+      <div class="slider-label"><span class="value-label">R</span><span id="rightValue" class="value">0</span>
+      </div>
+      <div class="slider-with-labels">
+        <div class="slider-values right-values">
+          <span style="font-weight: bold;">100</span>
+          <span>75</span>
+          <span>50</span>
+          <span>25</span>
+          <span style="font-weight: bold;">0</span>
+          <span>-25</span>
+          <span>-50</span>
+          <span>-75</span>
+          <span style="font-weight: bold;">-100</span>
+        </div>
+        <input class="slider slider-vertical" name="right" id="right" type="range" min="-100" max="100" value="0"
+          step="1" oninput="onSliderInput()" />
+      </div>
+    </div>
+  </form>
+  <script>
+    // Initialize displayed values on page load
+    document.addEventListener("DOMContentLoaded", function () {
+      updateValue("leftValue", document.getElementById("left").value);
+      updateValue("rightValue", document.getElementById("right").value);
+    });
+  </script>
+  <script>
+    let gamepadActive = false;
+    let lastLeft = 0, lastRight = 0;
+
+    function mapAxisToSlider(axis) {
+      // axis in [-1, 1] -> slider in [-100, 100], round to int
+      return Math.round(axis * 100);
+    }
+
+    function pollGamepad() {
+      const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+      if (!gamepads) return;
+      const gp = gamepads[0];
+      if (gp) {
+        let left = -mapAxisToSlider(gp.axes[1] || 0);
+        let right = -mapAxisToSlider(gp.axes[3] || 0);
+        if (left !== lastLeft || right !== lastRight) {
+          document.getElementById("left").value = left;
+          document.getElementById("right").value = right;
+          updateValue("leftValue", left);
+          updateValue("rightValue", right);
+          sendSliderUpdate(left, right);
+          lastLeft = left;
+          lastRight = right;
+        }
+      }
+      if (gamepadActive) {
+        requestAnimationFrame(pollGamepad);
+      }
+    }
+
+    // Start polling after a user gesture (required by Safari)
+    function enableGamepadControl() {
+      if (!gamepadActive) {
+        gamepadActive = true;
+        pollGamepad();
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      document.body.addEventListener("touchstart", enableGamepadControl, { once: true });
+      document.body.addEventListener("mousedown", enableGamepadControl, { once: true });
+    });
+  </script>
+</body>
+
+</html>
