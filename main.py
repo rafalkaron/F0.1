@@ -1,3 +1,5 @@
+import gc
+
 import uasyncio as asyncio
 
 from f01.ap import AccessPoint
@@ -84,12 +86,17 @@ class F01:
             self.led_back_left.on(bright=25, smooth=100),
             self.led_back_right.on(bright=25, smooth=100),
         )
+        gc_counter = 0
         while True:
             try:
                 await self.control_from_web_server()
             except Exception as e:
                 print(f"[run loop] Error: {e}")
             await asyncio.sleep(0.01)
+            gc_counter += 1
+            if gc_counter >= 500:  # ~every 5 seconds
+                gc.collect()
+                gc_counter = 0
 
 
 if __name__ == "__main__":
