@@ -1,5 +1,6 @@
 import network
 
+
 class AccessPoint:
     def __init__(self, essid: str = "F0.1", password: str = "F0.1-okoń") -> None:
         self.essid: str = essid
