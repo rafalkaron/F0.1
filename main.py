@@ -141,7 +141,6 @@ if __name__ == "__main__":
         loop.create_task(f01.web_server.run())
         loop.create_task(f01.run())
         loop.create_task(f01.blink_internal_led_until_connected())
-        loop.create_task(f01.monitor_ap())
         loop.run_forever()
     except Exception as e:
         print(f"[main] Error: {e}")
