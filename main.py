@@ -78,6 +78,13 @@ class F01:
             pass
         await self.led_internal.on()
 
+    async def monitor_ap(self) -> None:
+        while True:
+            if not self.ap.ap.active():
+                print("[AP] Lost connection, re-enabling...")
+                self.ap.ap.active(True)
+            await asyncio.sleep(2)
+
     async def run(self) -> None:
         print("Running F0.1...")
         await asyncio.gather(
@@ -134,6 +141,7 @@ if __name__ == "__main__":
         loop.create_task(f01.web_server.run())
         loop.create_task(f01.run())
         loop.create_task(f01.blink_internal_led_until_connected())
+        loop.create_task(f01.monitor_ap())
         loop.run_forever()
     except Exception as e:
         print(f"[main] Error: {e}")
