@@ -77,26 +77,6 @@
       max-height: 350px;
     }
 
-    .stop-btn {
-      width: 64px;
-      height: 64px;
-      min-width: 64px;
-      min-height: 64px;
-      font-size: 1.2em;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #e53935;
-      border: none;
-      color: #f8f8f8;
-      cursor: pointer;
-      font-weight: bold;
-      box-shadow: none;
-      outline: none;
-      transition: none;
-    }
-
     input[type=range].slider-vertical::-webkit-slider-thumb {
       width: 64px;
       height: 64px;
@@ -121,49 +101,92 @@
   <script>
     let sendSliderUpdateAbortController = null;
     let sendSliderUpdateTimeout = null;
-    function sendSliderUpdate(left, right) {
-      // Debounce: only send after 40ms pause
-      if (sendSliderUpdateTimeout) {
-        clearTimeout(sendSliderUpdateTimeout);
-      }
-      sendSliderUpdateTimeout = setTimeout(function () {
-        // Abort previous fetch if still pending
-        if (sendSliderUpdateAbortController) {
-          sendSliderUpdateAbortController.abort();
+    let resetSlidersTimeout = null;
+    // Cache DOM elements for performance
+    let leftSlider, rightSlider, leftValueElem, rightValueElem;
+    let lastSentLeft = null, lastSentRight = null;
+
+    let ws = null;
+    let wsConnected = false;
+    let wsQueue = [];
+
+    function connectWebSocket() {
+      ws = new WebSocket(
+        (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws"
+      );
+      ws.onopen = function () {
+        wsConnected = true;
+        // Send any queued messages
+        while (wsQueue.length > 0) {
+          ws.send(wsQueue.shift());
         }
-        sendSliderUpdateAbortController = new AbortController();
-        fetch(`/set?left=${left}&right=${right}`, { signal: sendSliderUpdateAbortController.signal })
-          .catch(err => {/* Optionally handle error */ });
-      }, 40);
+      };
+      ws.onclose = function () {
+        wsConnected = false;
+        // Try to reconnect after 1s
+        setTimeout(connectWebSocket, 1000);
+      };
+      ws.onerror = function () {
+        ws.close();
+      };
+    }
+    document.addEventListener("DOMContentLoaded", connectWebSocket);
+
+    function sendSliderUpdate(left, right) {
+      if (left === lastSentLeft && right === lastSentRight) return;
+      lastSentLeft = left;
+      lastSentRight = right;
+      const msg = JSON.stringify({ left: Number(left), right: Number(right) });
+      if (wsConnected && ws && ws.readyState === 1) {
+        ws.send(msg);
+      } else {
+        wsQueue.push(msg);
+      }
     }
     function updateValue(id, value) {
-      document.getElementById(id).textContent = value;
+      if (id === "leftValue") {
+        leftValueElem.textContent = value;
+      } else if (id === "rightValue") {
+        rightValueElem.textContent = value;
+      }
     }
     function onSliderInput() {
-      const left = document.getElementById("left").value;
-      const right = document.getElementById("right").value;
-      updateValue("leftValue", left);
-      updateValue("rightValue", right);
-      sendSliderUpdate(left, right);
-    }
-    function sendStop() {
-      document.getElementById("left").value = 0;
-      document.getElementById("right").value = 0;
-      updateValue("leftValue", 0);
-      updateValue("rightValue", 0);
-      sendSliderUpdate(0, 0);
-    }
-    // --- Keep-alive ping every 10 seconds ---
-    setInterval(function () {
-      fetch("/set?keepalive=1").catch(() => { });
-    }, 10000);
-    // --- Notify server on page unload ---
-    window.addEventListener("beforeunload", function () {
-      if (navigator.sendBeacon) {
-        navigator.sendBeacon("/set?stop=1");
-      } else {
-        fetch("/set?stop=1", { method: "POST", keepalive: true });
+      const left = leftSlider.value;
+      const right = rightSlider.value;
+      // Only update if changed
+      if (left !== lastSentLeft || right !== lastSentRight) {
+        updateValue("leftValue", left);
+        updateValue("rightValue", right);
+        sendSliderUpdate(left, right);
       }
+    }
+
+    function startResetTimer() {
+      if (resetSlidersTimeout) {
+        clearTimeout(resetSlidersTimeout);
+      }
+      resetSlidersTimeout = setTimeout(function () {
+        leftSlider.value = 0;
+        rightSlider.value = 0;
+        updateValue("leftValue", 0);
+        updateValue("rightValue", 0);
+        sendSliderUpdate(0, 0);
+      }, 100);
+    }
+
+    // Attach mouse/touch release events to start reset timer
+    document.addEventListener("DOMContentLoaded", function () {
+      leftSlider = document.getElementById("left");
+      rightSlider = document.getElementById("right");
+      leftValueElem = document.getElementById("leftValue");
+      rightValueElem = document.getElementById("rightValue");
+      [leftSlider, rightSlider].forEach(function (slider) {
+        slider.addEventListener("mouseup", startResetTimer);
+        slider.addEventListener("touchend", startResetTimer);
+        slider.addEventListener("mouseleave", function (e) {
+          if (e.buttons === 0) startResetTimer();
+        });
+      });
     });
   </script>
 </head>
@@ -189,7 +212,6 @@
         </div>
       </div>
     </div>
-    <button type="button" class="stop-btn" onclick="sendStop()">STOP</button>
     <div class="slider-component">
       <div class="slider-label"><span class="value-label">R</span><span id="rightValue" class="value">0</span>
       </div>
