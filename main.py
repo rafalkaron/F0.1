@@ -78,13 +78,6 @@ class F01:
             pass
         await self.led_internal.on()
 
-    async def monitor_ap(self) -> None:
-        while True:
-            if not self.ap.ap.active():
-                print("[AP] Lost connection, re-enabling...")
-                self.ap.ap.active(True)
-            await asyncio.sleep(2)
-
     async def run(self) -> None:
         print("Running F0.1...")
         await asyncio.gather(

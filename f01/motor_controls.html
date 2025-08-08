@@ -198,6 +198,9 @@
 </head>
 
 <body>
+  <button id="enableGamepadBtn" style="display:block;margin:1rem auto;padding:1rem 2rem;font-size:1.2rem;">
+    Enable gamepad
+  </button>
   <form class="controls" method="get" onsubmit="return false;">
     <div class="slider-component">
       <div class="slider-label"><span class="value-label">L</span><span id="leftValue" class="value">0</span>
@@ -287,6 +290,11 @@
     document.addEventListener("DOMContentLoaded", function () {
       document.body.addEventListener("touchstart", enableGamepadControl, { once: true });
       document.body.addEventListener("mousedown", enableGamepadControl, { once: true });
+      // Add button handler for explicit user gesture
+      document.getElementById("enableGamepadBtn").addEventListener("click", function () {
+        enableGamepadControl();
+        this.style.display = "none";
+      });
     });
   </script>
 </body>
