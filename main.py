@@ -2,10 +2,11 @@ import gc
 
 import uasyncio as asyncio
 
-from f01.ap import AccessPoint
+from config import WIFI_PASSWORD, WIFI_SSID
 from f01.led import Led
 from f01.motor import Motor
 from f01.webserver import WebServer
+from f01.wifi import AccessPoint, Station
 
 
 class F01:
@@ -17,9 +18,27 @@ class F01:
         self.led_front_left: Led = Led(15)
         self.left_motor: Motor = Motor(17, 18, correction=0.5)
         self.right_motor: Motor = Motor(19, 20)
-        self.ap: AccessPoint = AccessPoint()
-        self.ap.run()
+
+        self.station, self.ap = self._connect_wifi_or_ap()
         self.web_server: WebServer = WebServer()
+
+    def _connect_wifi_or_ap(self) -> tuple[Station | None, AccessPoint | None]:
+        """
+        Try to connect to WiFi using credentials from config.py. If it fails, set up Access Point.
+        Returns (station, ap), where only one is not None.
+        """
+        station: Station | None = None
+        ap: AccessPoint | None = None
+        connected = False
+        if WIFI_SSID and WIFI_PASSWORD:
+            station = Station(WIFI_SSID, WIFI_PASSWORD)
+            connected = station.connect()
+        if not connected:
+            print("Falling back to Access Point mode.")
+            ap = AccessPoint()
+            ap.run()
+            station = None
+        return station, ap
 
     async def move(self, left_speed: int = 0, right_speed: int = 0) -> None:
         await asyncio.gather(
@@ -65,7 +84,7 @@ class F01:
             print(f"[control_from_web_server] Error: {e}")
 
     async def blink_internal_led_until_connected(self) -> None:
-        """Blink internal LED using its blink method until at least one client is connected, then keep it on."""
+        """Blink internal LED until at least one client is connected, then keep it on."""
         blink_task = asyncio.create_task(
             self.led_internal.blink(interval_ms=500, bright=100, smooth=0)
         )
