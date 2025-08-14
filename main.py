@@ -2,7 +2,12 @@ import gc
 
 import uasyncio as asyncio
 
-from config import WIFI_PASSWORD, WIFI_SSID
+try:
+    from config import WIFI_PASSWORD, WIFI_SSID
+except ImportError:
+    WIFI_SSID = None
+    WIFI_PASSWORD = None
+
 from f01.led import Led
 from f01.motor import Motor
 from f01.webserver import WebServer
