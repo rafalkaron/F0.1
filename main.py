@@ -47,8 +47,8 @@ class F01:
 
     async def move(self, left_speed: int = 0, right_speed: int = 0) -> None:
         await asyncio.gather(
-            self.left_motor.throttle(left_speed, ramp_time=0.1, steps=3),
-            self.right_motor.throttle(right_speed, ramp_time=0.1, steps=3),
+            self.left_motor.throttle(left_speed, ramp_time=0, steps=0),
+            self.right_motor.throttle(right_speed, ramp_time=0, steps=0),
         )
 
     async def control_from_web_server(self) -> None:
