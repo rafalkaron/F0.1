@@ -2,7 +2,12 @@ import gc
 
 import uasyncio as asyncio
 
-from config import WIFI_PASSWORD, WIFI_SSID
+try:
+    from config import WIFI_PASSWORD, WIFI_SSID
+except ImportError:
+    WIFI_SSID = None
+    WIFI_PASSWORD = None
+
 from f01.led import Led
 from f01.motor import Motor
 from f01.webserver import WebServer
@@ -42,8 +47,8 @@ class F01:
 
     async def move(self, left_speed: int = 0, right_speed: int = 0) -> None:
         await asyncio.gather(
-            self.left_motor.throttle(left_speed, ramp_time=0.1, steps=3),
-            self.right_motor.throttle(right_speed, ramp_time=0.1, steps=3),
+            self.left_motor.throttle(left_speed, ramp_time=0, steps=0),
+            self.right_motor.throttle(right_speed, ramp_time=0, steps=0),
         )
 
     async def control_from_web_server(self) -> None:
