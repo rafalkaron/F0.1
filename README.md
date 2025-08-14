@@ -4,7 +4,9 @@ F0.1 -- the slowest robot in the world.
 
 ![F0.1](media/f01.jpeg)
 
-## Operation
+## Operation (AP mode)
+
+Connect a client device to F0.1 WiFi network to control F0.1.
 
 1. Obtain a client device, such as a smartphone, tablet, or laptop.
 2. Turn on F0.1.  
@@ -15,7 +17,30 @@ F0.1 -- the slowest robot in the world.
 5. Control F0.1 using the web interface.  
   ![F0.1 web interface](media/web_interface.png)
 6. (optional) Connect an Xbox controller to the client device and control F0.1 with analog sticks.  
-  To make the controller work on iOS, interact with the sliders using the web interface first.
+  To make the controller work on iOS, select **Enable gamepad** first.
+
+## Operation (Station mode)
+
+Provide WiFi credentials to connect F0.1 to your WiFi network. Control F0.1 from a client device in the same network.
+
+1. In the root folder of this project, create a `config.py` file (next to `main.py`).
+2. In `config.py`, add `WIFI_SSID` and `WIFI_PASSWORD` variables with with your WiFi credentials.  
+**Example:**
+
+    ```python
+    WIFI_SSID = "WiFiNetworkName"
+    WIFI_PASSWORD = "WiFiPassword"
+    ```
+
+3. Upload `config.py` to Raspberry Pi Pico W(H).
+4. Get the IP address of Raspberry Pi Pico W(H) by:
+    * Running `main.py` over USB and investigating output in the terminal.
+    * Investigating devices connected to your router.
+5. On the client device, in a web browser, open the IP address of Raspberry Pi Pico W(H).
+6. Control F0.1 using the web interface.  
+  ![F0.1 web interface](media/web_interface.png)
+1. (optional) Connect an Xbox controller to the client device and control F0.1 with analog sticks.  
+  To make the controller work on iOS, select **Enable gamepad** first.
 
 ## Development
 
